@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>1899.12.30 00:00:00.000.762,G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaC_Examples\AsynchronousGrab\Source\Main.pas=G:\Users\mwalter\Documents\Embarcadero\Studio\Projekte\Unit2.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.675,=G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaC_Examples\AsynchronousGrab\Source\Mutex.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.137,G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaC_Examples\AsynchronousGrab\Source\Mutex.pas=</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.015,=G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaC_Examples\Common\DiscoverGigECameras.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.941,=G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaImageTransform\Include\VmbTransformTypes.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.312,=G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaC_Examples\Include\VimbaC.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.445,G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaC_Examples\Common\DiscoverGigECameras.pas=G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaC_Examples\Common\Discover_GigECameras.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.780,=G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaC_Examples\AsynchronousGrab\Source\Win64\Debug\GrayScale.bmp</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.564,G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaC_Examples\AsynchronousGrab\Source\Win64\Debug\GrayScale.bmp=</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.747,=G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaC_Examples\AsynchronousGrab\Source\Win64\Debug\GrayScale.bmp</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.973,G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaC_Examples\Common\Discover_GigECameras.pas=</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.924,G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaImageTransform\Include\Vmb_Transform.pas=G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaImageTransform\Include\VmbTransform.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.001,G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaImageTransform\Include\Vmb_Transform.pas=</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.060,G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaC_Examples\AsynchronousGrab\Source\AsynchronousGrab.dproj=G:\Users\mwalter\Documents\Embarcadero\Studio\Projekte\Project1.dproj</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.114,=G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaC_Examples\AsynchronousGrab\Source\Bitmap.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.008,G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaC_Examples\AsynchronousGrab\Source\Bitmap.pas=</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.615,=G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaC_Examples\AsynchronousGrab\Source\Bitmap.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.825,G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaC_Examples\AsynchronousGrab\Source\Bitmap.pas=</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.627,G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaC_Examples\Common\Print_VimbaVersion.pas=</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.056,=G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaC_Examples\Common\PrintVimbaVersion.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.019,G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaC_Examples\Common\PrintVimbaVersion.pas=G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaC_Examples\Common\Print_VimbaVersion.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.762,G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaC_Examples\AsynchronousGrab\Source\Main.dfm=G:\Users\mwalter\Documents\Embarcadero\Studio\Projekte\Unit2.dfm</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.733,=G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaImageTransform\Include\VmbTransform.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.660,G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaImageTransform\Include\VmbTransformTypes.pas=</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.734,=G:\Users\mwalter\Documents\Embarcadero\Studio\Projekte\Unit2.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.403,=G:\Users\mwalter\Documents\AlliedVision\Vimba_3.1\VimbaC_Examples\Include\VmbCommonTypes.Pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.066,=G:\Users\mwalter\Documents\Embarcadero\Studio\Projekte\Common\MyBitmap.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.364,G:\Users\mwalter\Documents\Embarcadero\Studio\Projekte\Common\MyBitmap.pas=</Transaction>
+  </Transactions>
+</BorlandProject>
