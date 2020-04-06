@@ -52,7 +52,7 @@ uses
   VimbaC, VmbCommonTypes;
 
 const
-  NUM_FRAMES  = 3;
+  NUM_FRAMES  = 2;
   MyMsg       = WM_USER + 1;
 
 type
@@ -98,17 +98,16 @@ type
     procedure Edit1to3Exit(Sender: TObject);
 
   private
-    Procedure MoveFrame2Bitmap(Pnr: Integer);
     Procedure DisplayStatus;
     Procedure ClearCanvas(clr: Tcolor);
     Procedure PaintCross(TextColor : TColor;
                          CrossColor: TColor;
                          S         : String);
     Procedure AddMessage(Msg: String);
-    Function SetupCameras: Boolean;
+    Function SetupCamera: Boolean;
     Procedure StartContinuousImageAcquisition;
     Procedure StopContinuousImageAcquisition(completeShutdown: Boolean);
-
+    Procedure DrawBitmap;
   public
     //
   end;
@@ -116,7 +115,6 @@ type
 var
   Form2: TForm2;
 
-  PB                      : Array of TBitmap;                                   //Array of cameras
   g_bStreaming,                                                                 //Remember if Vimba is streaming
   FirstRun,
   g_bAcquiring            : Boolean;                                            //Remember if Vimba is acquiring
@@ -131,11 +129,12 @@ var
   g_dFrameTime            : TDateTime;                                          //Timestamp of last frame
   gg_dFrameTime           : Integer;
   g_nFrameID              : VmbUint64_t;                                        //ID of last frame
-  ValidFrame              : Array of Byte;
+  FrameBitmap             : TBitmap;
   pCameraID               : pANSIchar;
   dFPS                    : Single;                                             //frames per second calculated
   pPixelFormat            : PANSIchar;                                          //The pixel format we use for acquisition
   ToutCtr                 : Integer;
+  GigEBuffEmpty,
   CrossIsDrawn            : Boolean;
 
 Function DiscoverGigECameras(var RetStr: String; var IsGigE: Boolean): VmbError_t;
@@ -144,6 +143,22 @@ Function PrintVimbaVersion: String;
 implementation
 
 {$R *.dfm}
+
+procedure Make8BitPal(pal: PLogPalette);
+var
+  i, j: Integer;
+  k   : Array[0..3] of Byte absolute j;
+begin
+  pal^.palVersion:= $300;
+  pal^.palNumEntries:= 256;
+ {$R-}
+  for i:= 0 to 255 do
+  begin
+    j:= i; k[1]:= i; k[2]:= i;
+    pal^.palPalEntry[i]:= TPaletteEntry(j);
+  end;
+ {$R+}
+end;
 
 Procedure PostMainMessage(Msg: String);
 var
@@ -301,7 +316,6 @@ begin
       begin
         VmbFrameRevoke(g_CameraHandle, g_Frames[i]);
         freemem(g_Frames[i].buffer);
-        ZeroMemory(@g_Frames[i], sizeof(VmbFrame_t));
       end;
     end;
     VmbCameraClose(g_CameraHandle);
@@ -340,39 +354,47 @@ var
   bShowFrameInfos : Boolean;
   ddTimeDiff,
   ddframetime     : Integer;
-  nFramesMissing  : VmbUint64_t;     // number of missing frames
+  nFramesMissing  : VmbUint64_t;                                                // number of missing frames
+  HH, lw, H       : Integer;
+  P               : Pointer;
 
 begin
   dFPS:= 0.0;
   nFramesMissing:= 0;
   ToutCtr:= 0;
   g_bAcquiring:= true;
-                                                                   //Reset Timeout
+
   if(g_eFrameInfos <> FrameInfos.FrameInfos_Off) then
   begin
     bShowFrameInfos:= (FrameInfos_Show = g_eFrameInfos);
     if ((pFrame.receiveFlags and ord(VmbFrameFlagsFrameID)) > 0) then
     begin
-      if g_bFrameIDValid then
-      begin
-
-      end;
       g_nFrameID:= pFrame.frameID;                                              //store current frame id to calculate missing frames in the next calls
       g_bFrameIDValid:= True;
       ddframetime:= Gettickcount;
 
       if((g_bFrameTimeValid) and                                                //only if the last time was valid
-         (nFramesMissing = 0)) then                                             //and the frame is not missing
+         (nFramesMissing = 0) and                                               //and the frame is not missing
+         (GigEBuffEmpty)) then                                                  //and display buffer ready
       begin
-        Setlength(ValidFrame, pFrame.ImageSize);
-        CopyMemory(@ValidFrame[0], pFrame.buffer, pFrame.ImageSize);
-        ddTimeDiff:= ddFrameTime - gg_dFrameTime;
-        if ddTimeDiff > 0
-          then dFPS:= 1000 / ddTimeDiff
-          else bShowFrameInfos:= True;
+        lw:= FrameBitmap.Width * 1;                                                       //1Byte pro Bit ==> Mono8
+        HH:= 0;
+        H:= FrameBitmap.Height;
+        While HH < H do                                                             //copy grabbed picture to Buffers[]
+        begin
+          P:= FrameBitmap.ScanLine[HH];
+          CopyMemory(P, Pointer(NativeInt(pFrame.buffer) + (HH * lw)), lw);
+          Inc(HH);
+        end;
       end;
+      GigEBuffEmpty:= false;
       gg_dFrameTime:= ddframetime;
       g_bFrameTimeValid:= True;
+
+      ddTimeDiff:= ddFrameTime - gg_dFrameTime;
+      if ddTimeDiff > 0
+        then dFPS:= 1000 / ddTimeDiff
+        else bShowFrameInfos:= True;
     end
     else
     begin
@@ -393,24 +415,57 @@ begin
 end;
 
 procedure TForm2.FormCreate(Sender: TObject);
+var
+  Tout: Boolean;
+  Tm  : Cardinal;
 begin
   Memo1.Clear;
   Self.Show;
   Self.Caption:= 'AsynchronousGrab by M. Walter (2020)';
-  SetupCameras;
+  SetupCamera;       //Speeds up the first connect. Not necessarily required
   Timer1.Enabled:= True;
   while Timer1.Enabled do
   begin
-    if g_bAcquiring then
+    Tm:= GetTickCount;
+    Repeat                                                                      //wait until next field has been grabbed
+      try
+        Tout:= ((GetTickCount - Tm) > 3);
+      except
+        Tout:= True;                                                            //catches "Integer Overflow" when GetTickCount has rolled over
+      end;
+      If (not Tout) and                                                         //Wait for next frame or Timeout
+         (not GigEBuffEmpty) then Break;                                        //Cam has a new frame
+    Until Tout;
+
+    If Tout and (ToutCtr > 2) then
     begin
-      g_bAcquiring:= False;
-      MoveFrame2Bitmap(0);
-      DisplayStatus;
+      ClearCanvas(clBtnFace);
+      PaintCross(clRed, clBlack, 'Timeout');
+      CrossIsDrawn:= true;
+
+      SetupCamera;
+
+      Application.ProcessMessages;
+    end
+    else
+    begin
+      if g_bAcquiring then
+      begin
+        g_bAcquiring:= False;
+        if not GigEBuffEmpty then
+        begin
+          DrawBitmap;
+          GigEBuffEmpty:= true;
+        end;
+        DisplayStatus;
+      end
+      else
+        Tm:= GetTickCount;
     end;
     Application.ProcessMessages;
   end;
   Self.Close;
- end;
+end;
 
 // Purpose: Discovers GigE cameras if GigE TL is present.
 Function DiscoverGigECameras(var RetStr: String; var IsGigE: Boolean): VmbError_t;
@@ -466,7 +521,6 @@ end;
 
 Procedure TForm2.ClearCanvas(clr: Tcolor);
 begin
-  //image1.canvas.pen.color:= clr;
   image1.canvas.brush.color:= clr;
   image1.canvas.rectangle(0, 0, image1.width-1, image1.height-1);
 end;
@@ -506,57 +560,42 @@ begin
   end;
 End;
 
+Procedure TForm2.DrawBitmap;
+var
+  T: Trect;
+begin
+  If Radiobutton1.Checked then                                                  //50%
+  begin
+    T:= Rect(0, 0, Image1.Width div 2, Image1.Height div 2);
+    ClearCanvas(clBtnFace);
+    Image1.Canvas.StretchDraw(T, FrameBitmap);
+  end
+  else If Radiobutton2.Checked then                                             //100%
+  begin
+    Image1.Canvas.Draw(0, 0, FrameBitmap);
+  end
+  else If Radiobutton3.Checked then                                             //200%
+  begin
+    T:= Rect(0, 0, Image1.Width * 2, Image1.Height * 2);
+    Image1.Canvas.StretchDraw(T, FrameBitmap);
+  end;
+end;
+
 procedure TForm2.Timer1Timer(Sender: TObject);
 begin
   Inc(ToutCtr);
-
+(*
   If (ToutCtr > 10) then
   begin
     ClearCanvas(clBtnFace);
     PaintCross(clRed, clBlack, 'Timeout');
     CrossIsDrawn:= true;
 
-    SetupCameras;
+    SetupCamera;
 
     Application.ProcessMessages;
   end;
-end;
-
-Procedure TForm2.MoveFrame2Bitmap(Pnr: Integer);
-var
-  HH, lw, H: Integer;
-  P        : Pointer;
-  T        : Trect;
-begin
-  lw:= PB[Pnr].Width * 1;                                                       //1Byte pro Bit ==> Mono8
-  HH:= 0;
-  H:= PB[Pnr].Height;
-
-  if ValidFrame <> nil then
-  begin
-    While HH < H do                                                             //copy grabbed picture to Buffers[]
-    begin
-      P:= PB[Pnr].ScanLine[HH];
-      CopyMemory(P, @ValidFrame[HH * lw], lw);
-      Inc(HH);
-    end;
-
-    If Radiobutton1.Checked then                                                //50%
-    begin
-      T:= Rect(0, 0, Image1.Width div 2, Image1.Height div 2);
-      ClearCanvas(clBtnFace);
-      Image1.Canvas.StretchDraw(T, PB[0]);
-    end
-    else If Radiobutton2.Checked then                                           //100%
-    begin
-      Image1.Canvas.Draw(0, 0, PB[0]);
-    end
-    else If Radiobutton3.Checked then                                           //200%
-    begin
-      T:= Rect(0, 0, Image1.Width * 2, Image1.Height * 2);
-      Image1.Canvas.StretchDraw(T, PB[0]);
-    end;
-  end;
+ *)
 end;
 
 procedure TForm2.ScrollBar1Change(Sender: TObject);
@@ -593,7 +632,7 @@ begin
   Memo1.Lines.Move(0, 0);                                                       //Point to top of list
 end;
 
-Function TForm2.SetupCameras: Boolean;
+Function TForm2.SetupCamera: Boolean;
 var
   Res             : VmbError_t;
   Ptr             : PByte;
@@ -608,6 +647,7 @@ var
   SS              : String;
   IsGigE          : Boolean;
   Df              : Double;
+ pPal             : PLogPalette;
 
 begin
   //----------------StartContinuousImageAcquisition-----------------
@@ -631,37 +671,45 @@ begin
   FirstRun:= True;
   ToutCtr:= 0;
   CrossIsDrawn:= false;
-
+  if FrameBitmap = nil then
+  begin
+    FrameBitmap:= TBitmap.Create;                                               //sets mono8 palette
+    GetMem(pPal, 1028);
+    try
+      FrameBitmap.PixelFormat:= pf8bit;
+      Make8BitPal(pPal);
+      FrameBitmap.Palette:= CreatePalette(pPal^);
+    finally
+      FreeMem(pPal);
+    end;
+  end;
   Result:= false;
 
   StopContinuousImageAcquisition(true);
-
-  Setlength(PB, 1);
-  PB[0]:= TBitmap.Create;
-  PB[0].LoadFromResourceName(HInstance, 'GrayscaleBitmap_1');                   // sets mono8 palette
   pPixelFormat:= nil;
-
-  Res:= VmbStartup;                                                             // Startup Vimba
+  Res:= VmbStartup;                                                             //Startup Vimba
   if Res = Ord(VmbErrorSuccess) then
   begin
     AddMessage('VmbStartup succeeded');
-    LabeledEdit7.Text:= PrintVimbaVersion;                                      // Print the version of Vimba
+    LabeledEdit7.Text:= PrintVimbaVersion;                                      //Print the version of Vimba
   end
   else
     if (Ord(VmbErrorSuccess) <> Res) and (Integer(VmbErrorMoreData) <> Res) then
       AddMessage(Format('"vmbStartup" failed with Error: %d ==> %s',
                                    [Res, VmbErrorStr[(Res)]]));
 
-  If DiscoverGigECameras(SS, IsGigE) <> 0 then                                  // Is Vimba connected to a GigE transport layer?
+  If DiscoverGigECameras(SS, IsGigE) <> 0 then                                  //Is Vimba connected to a GigE transport layer?
   begin
     with Application do
     begin
-      (*  This is allows the MessageBox to be shown topmost...
+      // Allow MessageBox to be shown topmost...
       NormalizeTopMosts;
-      MessageBox(PWideChar(Format('DiscoverGigECameras failed with reason: %d %s || %s',
-                                 [Res, VmbErrorStr[(Res)], SS])), 'Message', MB_OK);
+      MessageBox(PWideChar(Format('DiscoverGigECameras failed with ' +
+                                  'reason: %d %s || %s',
+                                  [Ord(Res), VmbErrorStr[Res], SS])),
+                                  'Message', MB_OK);
       RestoreTopMosts;
-      *)
+
       AddMessage(SS);
       AddMessage('Exiting program');
       Exit;
@@ -695,7 +743,8 @@ begin
               if nFoundCount > 0
               then
               begin
-                copymemory(@pCameras, Ptr + (0 * sizeof(VmbCameraInfo_t)), sizeof(VmbCameraInfo_t));
+                copymemory(@pCameras, Ptr + (0 * sizeof(VmbCameraInfo_t)),
+                           sizeof(VmbCameraInfo_t));
                 pCameraID:= pCameras.cameraIdString;                            //select first camera per default
                 AddMessage(Format('Found: %s, %s, %s, %s, %d, %s',
                                                     [pCameras.cameraIdString,
@@ -721,8 +770,9 @@ begin
         end;
       end
       else
-        AddMessage(Format('Could not list cameras or no cameras present. Error code: %d %s',
-                               [Res, VmbErrorStr[(Res)]]));
+        AddMessage(Format('Could not list cameras or no cameras present. ' +
+                          'Error code: %d %s',
+                          [Res, VmbErrorStr[(Res)]]));
     end;
 
     if pCameraID <> nil then
@@ -734,7 +784,8 @@ begin
 
         // Try to set the GeV packet size to the highest possible value
         // We have already tested whether this cam actually is a GigE cam)
-        if Integer(VmbErrorSuccess) = VmbFeatureCommandRun(g_CameraHandle, 'GVSPAdjustPacketSize') then
+        if Integer(VmbErrorSuccess) = VmbFeatureCommandRun(g_CameraHandle,
+                                                   'GVSPAdjustPacketSize') then
         Repeat
           Res:= VmbFeatureCommandIsDone(g_CameraHandle, 'GVSPAdjustPacketSize',
                                         bIsCommandDone);
@@ -748,8 +799,9 @@ begin
             then
               AddMessage('Set "AcquisitionMode" to Continuous succeeded')
             else
-              AddMessage(Format('Set "AcquisitionMode" failed with Error: %d ==> %s',
-                                   [Res, VmbErrorStr[(Res)]]));
+              AddMessage(Format(
+                          'Set "AcquisitionMode" failed with Error: %d ==> %s',
+                          [Res, VmbErrorStr[Res]]));
 
           Res:= VmbFeatureEnumSet(g_cameraHandle, 'ExposureMode', 'Timed');
           if Res = Ord(VmbErrorSuccess) then
@@ -883,7 +935,7 @@ begin
               AddMessage(Format('Set "Width" failed with Error: %d ==> %s',
                                      [Res, VmbErrorStr[(Res)]]));
           end;
-          PB[0].Width:= I64;
+          FrameBitmap.Width:= I64;
 
           if I64_1 > 480 then                                                   //Height
           begin
@@ -896,7 +948,7 @@ begin
               AddMessage(Format('Set "Height" failed with Error: %d ==> %s',
                                      [Res, VmbErrorStr[(Res)]]));
           end;
-          PB[0].Height:= I64;
+          FrameBitmap.Height:= I64_1;
 
           Df:= 0.0;
           Res:= VmbFeatureFloatGet(g_CameraHandle, 'AcquisitionFrameRateAbs', Df);
@@ -964,7 +1016,7 @@ begin
                 begin
                   Res:= VmbCaptureFrameQueue(g_CameraHandle,
                                              g_Frames[i],
-                                             @FrameCallback);                  // Queue Frames
+                                             @FrameCallback);                   // Queue Frames
                   if Res = Ord(VmbErrorSuccess) then
                     AddMessage(Format('"VmbCaptureFrameQueue" ' +
                                            'succeeded for Frame #%d', [i]));
@@ -1003,9 +1055,7 @@ begin
       else
         AddMessage(Format('"VmbCameraOpen" with ID: %s failed with Error: %d ==> %s',
                                  [pCameraID, Res, VmbErrorStr[(Res)]]));
-    end {
-    else
-      AddMessage('No camera defined')};
+    end;
   finally
     //
   end;
