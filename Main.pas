@@ -548,8 +548,8 @@ begin
     If OK then
     With Canvas do
     begin
-      canvas.brush.color:= clBtnFace;
-      canvas.rectangle(0, 0, image1.width-1, image1.height-1);
+      brush.color:= clBtnFace;
+      Rectangle(0, 0, image1.width-1, image1.height-1);                         //clear image
       Pen.Width:= 2;                                                            //fat
       Pen.Color:= CrossColor;
       MoveTo(0, 0);
