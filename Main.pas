@@ -99,7 +99,6 @@ type
 
   private
     Procedure DisplayStatus;
-    Procedure ClearCanvas(clr: Tcolor);
     Procedure PaintCross(TextColor : TColor;
                          CrossColor: TColor;
                          S         : String);
@@ -108,6 +107,8 @@ type
     Procedure StartContinuousImageAcquisition;
     Procedure StopContinuousImageAcquisition(completeShutdown: Boolean);
     Procedure DrawBitmap;
+    Procedure Delay(TargetTime: Cardinal; Process_Messages: Boolean = True);
+
   public
     //
   end;
@@ -116,7 +117,6 @@ var
   Form2: TForm2;
 
   g_bStreaming,                                                                 //Remember if Vimba is streaming
-  FirstRun,
   g_bAcquiring            : Boolean;                                            //Remember if Vimba is acquiring
   g_CameraHandle          : vmbHandle_t;                                        //A handle to our camera
   g_Frames                : Array[0..(NUM_FRAMES - 1)] of VmbFrame_t;           //The frames we capture into
@@ -178,7 +178,7 @@ var
 begin
   //---------- Write Info to camera ----------
   try
-    Df:= ScrollBar1.Position; //uS
+    Df:= ScrollBar1.Position;                                                   //uS
     Res:= VmbFeatureFloatSet(g_CameraHandle, 'ExposureTimeAbs', Df);
     If Res = Ord(VmbErrorSuccess)
     then
@@ -228,11 +228,6 @@ begin
   end;
   LabelEdEdit2.Text:= SS;
   Labelededit5.Text:= Format('%0.1f', [dFPS]);
-
-  if FrameInfo.pixelFormat = $1080001
-    then LabelEdEdit4.Text:= 'Mono8'
-    else LabelEdEdit4.Text:= Format('Format:$%08X', [FrameInfo.pixelFormat]);
-
   LabelEdEdit3.Text:= Format(' %u', [FrameInfo.bufferSize]);
   LabelEdEdit6.Text:= Format(' %ux%u', [FrameInfo.width, FrameInfo.height]);
 end;
@@ -349,8 +344,9 @@ end;
 Procedure FrameCallback(cameraHandle: VmbHandle_t;
                         pFrame      : VmbFrame_t);
 var
-  //from here on the frame is under user control until returned to Vimba by re queuing it
-  //if you want to have smooth streaming keep the time you hold the frame short
+  //from here on the frame is under user control until returned to Vimba by
+  //re queuing it if you want to have smooth streaming keep the time you hold
+  //the frame short
   bShowFrameInfos : Boolean;
   ddTimeDiff,
   ddframetime     : Integer;
@@ -414,6 +410,25 @@ begin
                        @FrameCallback);
 end;
 
+Procedure TForm2.Delay(TargetTime: Cardinal; Process_Messages: Boolean = True);
+var
+  Start  : Cardinal;
+  Running: Boolean;
+
+begin
+  Start:= GetTickCount;
+  Running:= (TargetTime > 0);
+  While Running do
+  begin
+    try
+      Running:= ((GetTickCount - Start) < TargetTime);
+    except
+      Running:= False; //catches "Integer Overflow" when GetTickCount rolls over
+    end;
+    If Process_Messages then Application.ProcessMessages;
+  end;
+End;
+
 procedure TForm2.FormCreate(Sender: TObject);
 var
   Tout: Boolean;
@@ -439,11 +454,11 @@ begin
 
     If Tout and (ToutCtr > 2) then
     begin
-      ClearCanvas(clBtnFace);
       PaintCross(clRed, clBlack, 'Timeout');
       CrossIsDrawn:= true;
 
-      SetupCamera;
+      SetupCamera;                                                              //Reconnect to camera
+      Delay(3000);                         //avoid multipkle retries by waiting for camera to come alive
 
       Application.ProcessMessages;
     end
@@ -458,9 +473,7 @@ begin
           GigEBuffEmpty:= true;
         end;
         DisplayStatus;
-      end
-      else
-        Tm:= GetTickCount;
+      end;
     end;
     Application.ProcessMessages;
   end;
@@ -519,12 +532,6 @@ begin
   end;
 end;
 
-Procedure TForm2.ClearCanvas(clr: Tcolor);
-begin
-  image1.canvas.brush.color:= clr;
-  image1.canvas.rectangle(0, 0, image1.width-1, image1.height-1);
-end;
-
 Procedure TForm2.PaintCross(TextColor : TColor;
                             CrossColor: TColor;
                             S         : String);
@@ -541,7 +548,8 @@ begin
     If OK then
     With Canvas do
     begin
-      Clearcanvas(clBtnFace);
+      canvas.brush.color:= clBtnFace;
+      canvas.rectangle(0, 0, image1.width-1, image1.height-1);
       Pen.Width:= 2;                                                            //fat
       Pen.Color:= CrossColor;
       MoveTo(0, 0);
@@ -567,7 +575,6 @@ begin
   If Radiobutton1.Checked then                                                  //50%
   begin
     T:= Rect(0, 0, Image1.Width div 2, Image1.Height div 2);
-    ClearCanvas(clBtnFace);
     Image1.Canvas.StretchDraw(T, FrameBitmap);
   end
   else If Radiobutton2.Checked then                                             //100%
@@ -584,18 +591,6 @@ end;
 procedure TForm2.Timer1Timer(Sender: TObject);
 begin
   Inc(ToutCtr);
-(*
-  If (ToutCtr > 10) then
-  begin
-    ClearCanvas(clBtnFace);
-    PaintCross(clRed, clBlack, 'Timeout');
-    CrossIsDrawn:= true;
-
-    SetupCamera;
-
-    Application.ProcessMessages;
-  end;
- *)
 end;
 
 procedure TForm2.ScrollBar1Change(Sender: TObject);
@@ -647,7 +642,8 @@ var
   SS              : String;
   IsGigE          : Boolean;
   Df              : Double;
- pPal             : PLogPalette;
+  pPal            : PLogPalette;
+  FeatureNames    : Array of pANSICHAR;
 
 begin
   //----------------StartContinuousImageAcquisition-----------------
@@ -663,12 +659,12 @@ begin
   g_eFrameInfos:= FrameInfos_Show;
   g_bRGBValue:= false;
   g_bEnableColorProcessing:= false;
+	
   bIsCommandDone:= false;
   nPayloadSize:= 0;
   cameraAccessMode:= ord(VmbAccessModeFull);                                    // We open the camera with full access
   ncount:= 0;
   nFoundCount:= 0;
-  FirstRun:= True;
   ToutCtr:= 0;
   CrossIsDrawn:= false;
   if FrameBitmap = nil then
@@ -719,8 +715,8 @@ begin
   try
     if pCameraID = nil  then                                                    //If no camera ID was provided use the first camera found
     begin
-      //After connecting a camera to power, it will take some seconds until it is ready
-      //This may several retries here because retry is every 5 seconds
+      //After connecting a camera to power, it will take some seconds until
+      //it is ready. This may several retries
       Res:= VmbCamerasList(Nil, 0, nCount, sizeof(pCameras));                   //Get known cameras
       if (Res = Ord(VmbErrorSuccess)) and (nCount > 0) then
       begin
@@ -730,9 +726,11 @@ begin
           begin
             // Actually query all static details of all known cameras without
             //having to open the cameras. If a new camera was connected since
-            //we queried the amount of cameras (nFoundCount > nCount) we can ignore that one
+            //we queried the amount of cameras (nFoundCount > nCount) we can
+            //ignore that one
             Res:= VmbCamerasList(Ptr, nCount, nFoundCount, sizeof(pCamera));
-            if (Ord(VmbErrorSuccess) <> Res) and (Integer(VmbErrorMoreData) <> Res) then
+            if (Ord(VmbErrorSuccess) <> Res) and
+               (Integer(VmbErrorMoreData) <> Res) then
             begin
               AddMessage(Format('Could not get camera details. Error: %d ==> %s',
                                      [Res, VmbErrorStr[(Res)]]));
@@ -783,18 +781,23 @@ begin
         AddMessage(Format('Camera with ID: %s is opened', [pCameraID]));
 
         // Try to set the GeV packet size to the highest possible value
-        // We have already tested whether this cam actually is a GigE cam)
+        // We have already tested whether this cam actually is a GigE cam
         if Integer(VmbErrorSuccess) = VmbFeatureCommandRun(g_CameraHandle,
                                                    'GVSPAdjustPacketSize') then
         Repeat
           Res:= VmbFeatureCommandIsDone(g_CameraHandle, 'GVSPAdjustPacketSize',
                                         bIsCommandDone);
-          if Ord(VmbErrorSuccess) <> Res then Break;
+          if Ord(VmbErrorSuccess) <> Res then 
+					begin
+					  Res:= Ord(VmbErrorSuccess);
+					  Break;
+					end;	
         until bIsCommandDone;
 
         if Res = Ord(VmbErrorSuccess) then
         begin
-          Res:= VmbFeatureEnumSet(g_cameraHandle, 'AcquisitionMode', 'Continuous');
+          Res:= VmbFeatureEnumSet(g_cameraHandle, 'AcquisitionMode',
+                                  'Continuous');
           If Res = Ord(VmbErrorSuccess)
             then
               AddMessage('Set "AcquisitionMode" to Continuous succeeded')
@@ -824,7 +827,8 @@ begin
           else
           begin
             ScrollBar1Change(Self);
-            AddMessage(Format('Set "ExposureTimeAbs" failed with Error: %d ==> %s',
+            AddMessage(Format('Set "ExposureTimeAbs" failed with ' +
+                              'Error: %d ==> %s',
                               [Res, VmbErrorStr[(Res)]]));
           end;
 
@@ -844,43 +848,30 @@ begin
             then
               AddMessage('Set "TriggerSource" to Fixed Rate succeeded')
             else
-              AddMessage(Format('Set "TriggerSource" failed with Error: %d ==> %s',
-                                     [Res, VmbErrorStr[(Res)]]));
-
-          Df:= 30000;                                                           //Default
-          Res:= VmbFeatureFloatSet(g_CameraHandle, 'ExposureTimeAbs', Df);
-          If Res = Ord(VmbErrorSuccess) then
-          begin
-            EnsureRange(Df, ScrollBar2.Min, ScrollBar2.Max);
-            ScrollBar2.Position:= Round(Df);
-            AddMessage(Format('Set "ExposureTimeAbs" to: %0.0f', [Df]));
-          end
-          else
-          begin
-            ScrollBar2Change(Self);
-            AddMessage(Format('Set "ExposureTimeAbs" failed with Error: %d ==> %s',
-                                   [Res, VmbErrorStr[(Res)]]));
-          end;
-
+              AddMessage(Format('Set "TriggerSource" failed with ' +
+                                'Error: %d ==> %s',
+                                [Res, VmbErrorStr[(Res)]]));
           Df:= 8.0;
-          Res:= VmbFeatureFloatSet(g_CameraHandle, 'AcquisitionFrameRateAbs', Df);
+          Res:= VmbFeatureFloatSet(g_CameraHandle,
+                                   'AcquisitionFrameRateAbs', Df);
           If Res = Ord(VmbErrorSuccess) then
           begin
             AddMessage(Format('Set "Acquisition Frame Rate Abs": %0.1f', [Df]));
             ScrollBar5.Position:= Round(Df);
           end
           else
-            AddMessage(Format('Set "AcquisitionFrameRateAbs" failed with Error: %d ==> %s',
-                                   [Res, VmbErrorStr[(Res)]]));
+            AddMessage(Format('Set "AcquisitionFrameRateAbs" failed with ' +
+                              'Error: %d ==> %s',
+                              [Res, VmbErrorStr[(Res)]]));
 
           //This feature is always Off on Prosilica GE. Can not be changed
           Res:= VmbFeatureEnumSet(g_CameraHandle, 'GainAuto', 'Off');
           If Res = Ord(VmbErrorSuccess)
-          then
-            AddMessage('Set "GainMode" to Off')
-          else
-            AddMessage(Format('"Set GainAuto" failed with Error: %d ==> %s',
-                                   [Res, VmbErrorStr[(Res)]]));
+            then
+              AddMessage('Set "GainMode" to Off')
+            else
+              AddMessage(Format('"Set GainAuto" failed with Error: %d ==> %s',
+                              [Res, VmbErrorStr[(Res)]]));
 
           I64:= 0;                                                              //Default
           Res:= VmbFeatureIntSet(g_CameraHandle, 'GainRaw', I64);
@@ -906,7 +897,7 @@ begin
           else
           begin
             AddMessage(Format('Get "Width" failed with Error: %d ==> %s',
-                                   [Res, VmbErrorStr[(Res)]]));
+                       [Res, VmbErrorStr[(Res)]]));
             I64:= 640;                                                          //Default
           end;
 
@@ -918,7 +909,7 @@ begin
           else
           begin
             AddMessage(Format('Get "Height" failed with Error: %d ==> %s',
-                                   [Res, VmbErrorStr[(Res)]]));
+                              [Res, VmbErrorStr[(Res)]]));
             I64_1:= 480;                                                        //Default
           end;
 
@@ -933,7 +924,7 @@ begin
               AddMessage(Format('Set "Width" to: %d', [I64]))
             else
               AddMessage(Format('Set "Width" failed with Error: %d ==> %s',
-                                     [Res, VmbErrorStr[(Res)]]));
+                                [Res, VmbErrorStr[(Res)]]));
           end;
           FrameBitmap.Width:= I64;
 
@@ -946,115 +937,120 @@ begin
               AddMessage(Format('Set "Height" to: %d', [I64]))
             else
               AddMessage(Format('Set "Height" failed with Error: %d ==> %s',
-                                     [Res, VmbErrorStr[(Res)]]));
+                                [Res, VmbErrorStr[(Res)]]));
           end;
           FrameBitmap.Height:= I64_1;
 
           Df:= 0.0;
-          Res:= VmbFeatureFloatGet(g_CameraHandle, 'AcquisitionFrameRateAbs', Df);
+          Res:= VmbFeatureFloatGet(g_CameraHandle, 'AcquisitionFrameRateAbs',
+                                   Df);
           If Res = Ord(VmbErrorSuccess) then
           begin
-            AddMessage(Format('Get "AcquisitionFrameRateAbs": %0.1f succeeded', [Df]));
+            AddMessage(Format('Get "AcquisitionFrameRateAbs": %0.1f succeeded',
+                       [Df]));
             ScrollBar5.Position:= Round(Df);
           end
           else
-            AddMessage(Format('Get "AcquisitionFrameRateAbs" failed with Error: %d ==> %s',
-                                   [Res, VmbErrorStr[(Res)]]));
+            AddMessage(Format('Get "AcquisitionFrameRateAbs" failed with ' +
+                              'Error: %d ==> %s', [Res, VmbErrorStr[(Res)]]));
 
-          if Res = Integer(VmbErrorSuccess) then
-          begin
-            Res:= VmbFeatureIntGet(g_CameraHandle, 'PayloadSize', nPayloadSize);  // Evaluate frame size
-            if Res = Integer(VmbErrorSuccess) then
-            begin
-              for i:= 0 to (NUM_FRAMES - 1) do
+          SetLength(FeatureNames, 1);   //ich erwarte ein Pixelformat
+          Res:= VmbFeatureEnumGet(g_CameraHandle, 'PixelFormat',
+                                  ppANSIchar(FeatureNames));
+					If Res = Ord(VmbErrorSuccess) then
+					begin
+            LabelEdEdit4.Text:= String(FeatureNames[0]);
+					  if FeatureNames[0] = 'Mono8' then
+						begin
+              Res:= VmbFeatureIntGet(g_CameraHandle, 'PayloadSize',
+                                     nPayloadSize);                             // Evaluate frame size
+              if Res = Integer(VmbErrorSuccess) then
               begin
-                GetMem(g_Frames[i].buffer, nPayloadSize);
-                if g_Frames[i].buffer = nil then
+                for i:= 0 to (NUM_FRAMES - 1) do
                 begin
-                  Res:= Ord(VmbErrorResources);
-                  break;
+                  GetMem(g_Frames[i].buffer, nPayloadSize);
+                  if g_Frames[i].buffer = nil then
+  									AddMessage('Getmem for frame buffer[%d] failed with ' +
+                               'Error: "Out of memory"')
+                  else
+                  begin
+  									g_Frames[i].bufferSize:= VmbUint32_t(nPayloadSize);
+
+                  
+										Res:= VmbFrameAnnounce(g_CameraHandle, g_Frames[i],
+																					 VmbUint32_t(sizeof(VmbFrame_t)));
+										if Res <> Ord(VmbErrorSuccess) then
+										begin
+											freemem(g_Frames[i].buffer);
+											ZeroMemory(@g_Frames[i], sizeof(VmbFrame_t));
+											AddMessage(Format('"VmbFrameAnnounce" for frame buffer #%d ' +
+																				'failed with Error: %d ==> %s',
+																				[i, Res, VmbErrorStr[(Res)]]));
+											break;
+										end;
+									end;	
+                end;
+
+                //---------- Get Some Info from camera ----------
+                Res:= VmbFeatureFloatGet(g_CameraHandle,
+                                         'AcquisitionFrameRateLimit', Df);
+                If Res = Ord(VmbErrorSuccess) then
+                begin
+                  AddMessage(Format('Get "AcquisitionFrameRateLimit" is: %0.1f',
+                             [Df]));
+                  ScrollBar5.Min:= 0;
+                  ScrollBar5.Max:= Round(Df);
                 end
                 else
-                  g_Frames[i].bufferSize:= VmbUint32_t(nPayloadSize);
+                  AddMessage(Format('Get "AcquisitionFrameRateLimit" failed ' +
+                                    'with Error: %d ==> %s',
+                                    [Res, VmbErrorStr[(Res)]]));
 
-                // Announce Frame
-                Res:= VmbFrameAnnounce(g_CameraHandle, g_Frames[i], VmbUint32_t(sizeof(VmbFrame_t)));
-                if Res <> Ord(VmbErrorSuccess) then
-                begin
-                  freemem(g_Frames[i].buffer);
-                  ZeroMemory(@g_Frames[i], sizeof(VmbFrame_t));
-                  AddMessage(Format('"VmbFrameAnnounce" for frame buffer #%d failed with Error: %d ==> %s',
-                                     [i, Res, VmbErrorStr[(Res)]]));
-                  Res:= 0;
-                  break;
-                end;
-              end;
-
-              if Res <> 0 then
-                AddMessage(Format('Getmem for frame buffer[%d] failed with Error: %d ==> %s',
-                                     [Res, VmbErrorStr[(Res)]]));
-
-              //---------- Get Some Info from camera ----------
-              Res:= VmbFeatureFloatGet(g_CameraHandle, 'AcquisitionFrameRateLimit', Df);
-              If Res = Ord(VmbErrorSuccess) then
-              begin
-                AddMessage(Format('Get "AcquisitionFrameRateLimit" is: %0.1f', [Df]));
-                ScrollBar5.Min:= 0;
-                ScrollBar5.Max:= Round(Df);
-              end
-              else
-                AddMessage(Format('Get "AcquisitionFrameRateLimit" failed with Error: %d ==> %s',
-                                       [Res, VmbErrorStr[(Res)]]));
-
-              Res:= VmbCaptureStart(g_CameraHandle);                            // Start Capture Engine
-              if Res = Ord(VmbErrorSuccess) then
-              begin
-                AddMessage('"VmbCaptureStart" succeeded');
-                g_bStreaming:= True;
-
-                for i:= 0 to (NUM_FRAMES) - 1 do
-                begin
-                  Res:= VmbCaptureFrameQueue(g_CameraHandle,
-                                             g_Frames[i],
-                                             @FrameCallback);                   // Queue Frames
-                  if Res = Ord(VmbErrorSuccess) then
-                    AddMessage(Format('"VmbCaptureFrameQueue" ' +
-                                           'succeeded for Frame #%d', [i]));
-                end;
-
+                Res:= VmbCaptureStart(g_CameraHandle);                          // Start Capture Engine
                 if Res = Ord(VmbErrorSuccess) then
                 begin
-                  Res:= VmbFeatureCommandRun(g_CameraHandle, 'AcquisitionStart');
-                  if Res = Ord(VmbErrorSuccess) then
-                    AddMessage('"AcquisitionStart" succeeded')
-                  else
-                    AddMessage(Format('"AcquisitionStart" failed with Error: %d ==> %s',
-                                           [Res, VmbErrorStr[(Res)]]));
+                  AddMessage('"VmbCaptureStart" succeeded');
+                  g_bStreaming:= True;
+
+                  for i:= 0 to (NUM_FRAMES) - 1 do
+                  begin
+                    Res:= VmbCaptureFrameQueue(g_CameraHandle,
+                                               g_Frames[i],
+                                               @FrameCallback);                 // Queue Frames
+                    if Res = Ord(VmbErrorSuccess) 
+										 then
+                       AddMessage(Format('"VmbCaptureFrameQueue" ' +
+                                        'succeeded for Frame #%d', [i]))
+										 else
+                       AddMessage(Format('"VmbCaptureFrameQueue" failed with ' +
+                                  'Error: %d ==> %s', [Res, VmbErrorStr[(Res)]]));
+                  end;
+                  if Res = Ord(VmbErrorSuccess)
+                    then StartContinuousImageAcquisition;
                 end
                 else
-                  if Res <> 0 then
-                    AddMessage(Format('"VmbCaptureFrameQueue" failed with error: %d ==> %s',
-                                           [Res, VmbErrorStr[(Res)]]));
+                  AddMessage(Format('"VmbCaptureStart" failed with ' +
+                             'Error: %d ==> %s', [Res, VmbErrorStr[(Res)]]));
               end
               else
-                AddMessage(Format('"VmbCaptureStart" failed with Error: %d ==> %s',
-                                       [Res, VmbErrorStr[(Res)]]))
+                AddMessage(Format('"PayloadSize" failed with Error: %d ==> %s',
+                           [Res, VmbErrorStr[(Res)]]));
             end
             else
-              AddMessage(Format('"PayloadSize" failed with Error: %d ==> %s',
-                                     [Res, VmbErrorStr[(Res)]]))
-          end
+              AddMessage('Only Pixel Format: "Mono8" is supported');
+					end
           else
             AddMessage(Format('"GetPixelFormat" failed with Error: %d ==> %s',
-                                   [Res, VmbErrorStr[(Res)]]))
+                       [Res, VmbErrorStr[(Res)]]));
         end
         else
           AddMessage(Format('"GVSPAdjustPacketSize" failed with Error: %d ==> %s',
-                                 [Res, VmbErrorStr[(Res)]]))
+                     [Res, VmbErrorStr[(Res)]]));
       end
       else
-        AddMessage(Format('"VmbCameraOpen" with ID: %s failed with Error: %d ==> %s',
-                                 [pCameraID, Res, VmbErrorStr[(Res)]]));
+        AddMessage(Format('"VmbCameraOpen" with ID: %s failed with ' +
+                   'Error: %d ==> %s',
+                   [pCameraID, Res, VmbErrorStr[(Res)]]));
     end;
   finally
     //
