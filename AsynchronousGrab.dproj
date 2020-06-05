@@ -132,10 +132,6 @@
         </DCCReference>
         <DCCReference Include="..\..\Include\VimbaC.pas"/>
         <DCCReference Include="..\..\Include\VmbCommonTypes.Pas"/>
-        <RcItem Include="Win64\Debug\GrayScale.bmp">
-            <ResourceType>BITMAP</ResourceType>
-            <ResourceId>GrayscaleBitmap_1</ResourceId>
-        </RcItem>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -162,21 +158,9 @@
                 </Excluded_Packages>
             </Delphi.Personality>
             <Deployment Version="3">
-                <DeployFile LocalName="Win64\Debug\AsynchronousGrab.rsm" Configuration="Debug" Class="DebugSymbols">
-                    <Platform Name="Win64">
-                        <RemoteName>AsynchronousGrab.rsm</RemoteName>
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
                 <DeployFile LocalName="Win32\Debug\AsynchronousGrab.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
                         <RemoteName>AsynchronousGrab.exe</RemoteName>
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
-                <DeployFile LocalName="Win64\Debug\GrayScale.bmp" Configuration="Debug" Class="ProjectFile">
-                    <Platform Name="Win64">
-                        <RemoteDir>.\</RemoteDir>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
@@ -189,6 +173,12 @@
                 <DeployFile LocalName="Win64\Debug\AsynchronousGrab.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win64">
                         <RemoteName>AsynchronousGrab.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Win64\Debug\AsynchronousGrab.rsm" Configuration="Debug" Class="DebugSymbols">
+                    <Platform Name="Win64">
+                        <RemoteName>AsynchronousGrab.rsm</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>

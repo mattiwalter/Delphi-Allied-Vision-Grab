@@ -1,12 +1,9 @@
 program AsynchronousGrab;
 
-{$R *.dres}
+
 
 uses
   Vcl.Forms,
-  Vcl.Dialogs,
-  System.SysUtils,
-  WinAPI.Windows,
   Main in 'Main.pas' {Form2},
   VimbaC in '..\..\Include\VimbaC.pas',
   VmbCommonTypes in '..\..\Include\VmbCommonTypes.Pas';

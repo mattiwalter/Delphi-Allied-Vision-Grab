@@ -36,7 +36,6 @@ uses
   VmbCommonTypes;
 
 Type
-  PPPxFormat = ^VmbPixelFormat_t;
   PPANSIchar = ^PAnsiChar;
   PPVmbUInt32_t = ^VmbUint32_t;
   PPByte = ^Byte;
@@ -122,20 +121,20 @@ type
   // Interface information.
   // Holds read-only information about an interface.
   VmbInterfaceInfo_t = Record
-    interfaceIdString : pANSIchar;              // Unique identifier for each interface
+    interfaceIdString : pANSIchar;          // Unique identifier for each interface
     interfaceType     : VmbInterface_t;     // Interface type, see VmbInterfaceType
-    interfaceName     : pANSIchar;              // Interface name, given by the transport layer
-    serialString      : pANSIchar;              // Serial number
+    interfaceName     : pANSIchar;          // Interface name, given by the transport layer
+    serialString      : pANSIchar;          // Serial number
     permittedAccess   : VmbAccessMode_t;    // Used access mode, see VmbAccessModeType
   end;
 
-  VmbCameraInfo_t = Record
-    cameraIdString    : pANSIchar;              // Unique identifier for each camera
-    cameraName        : pANSIchar;              // Name of the camera
-    modelName         : pANSIchar;              // Model name
-    serialString      : pANSIchar;              // Serial number
+  VmbCameraInfo_t =  Record
+    cameraIdString    : pANSIchar;          // Unique identifier for each camera
+    cameraName        : pANSIchar;          // Name of the camera
+    modelName         : pANSIchar;          // Model name
+    serialString      : pANSIchar;          // Serial number
     permittedAccess   : VmbAccessMode_t;    // Used access mode, see VmbAccessModeType
-    interfaceIdString : pANSIchar;              // Unique value for each interface or bus
+    interfaceIdString : pANSIchar;          // Unique value for each interface or bus
   end;
 
   // Supported feature data types
@@ -154,38 +153,38 @@ type
 
   // Feature visibility
   VmbFeatureVisibilityType = (
-      VmbFeatureVisibilityUnknown      = 0,   // Feature visibility is not known
-      VmbFeatureVisibilityBeginner     = 1,   // Feature is visible in feature list (beginner level)
-      VmbFeatureVisibilityExpert       = 2,   // Feature is visible in feature list (expert level)
-      VmbFeatureVisibilityGuru         = 3,   // Feature is visible in feature list (guru level)
-      VmbFeatureVisibilityInvisible    = 4    // Feature is not visible in feature list
+      VmbFeatureVisibilityUnknown      = 0, // Feature visibility is not known
+      VmbFeatureVisibilityBeginner     = 1, // Feature is visible in feature list (beginner level)
+      VmbFeatureVisibilityExpert       = 2, // Feature is visible in feature list (expert level)
+      VmbFeatureVisibilityGuru         = 3, // Feature is visible in feature list (guru level)
+      VmbFeatureVisibilityInvisible    = 4  // Feature is not visible in feature list
   );
-  VmbFeatureVisibility_t = VmbUint32_t;       // Type for Feature visibility; for values see VmbFeatureVisibilityType
+  VmbFeatureVisibility_t = VmbUint32_t;     // Type for Feature visibility; for values see VmbFeatureVisibilityType
 
   // Feature flags
   VmbFeatureFlagsType = (
-      VmbFeatureFlagsNone         = 0,        // No additional information is provided
-      VmbFeatureFlagsRead         = 1,        // Static info about read access. Current status depends on access mode, check with VmbFeachtureAccessQuery()
-      VmbFeatureFlagsWrite        = 2,        // Static info about write access. Current status depends on access mode, check with VmbFeachtureAccessQuery()
-      VmbFeatureFlagsVolatile     = 8,        // Value may change at any time
-      VmbFeatureFlagsModifyWrite  = 16        // Value may change after a write
+      VmbFeatureFlagsNone         = 0,      // No additional information is provided
+      VmbFeatureFlagsRead         = 1,      // Static info about read access. Current status depends on access mode, check with VmbFeachtureAccessQuery()
+      VmbFeatureFlagsWrite        = 2,      // Static info about write access. Current status depends on access mode, check with VmbFeachtureAccessQuery()
+      VmbFeatureFlagsVolatile     = 8,      // Value may change at any time
+      VmbFeatureFlagsModifyWrite  = 16      // Value may change after a write
   );
-  VmbFeatureFlags_t = VmbUint32_t;            // Type for Feature flags; for values see VmbFeatureFlagsType
+  VmbFeatureFlags_t = VmbUint32_t;          // Type for Feature flags; for values see VmbFeatureFlagsType
 
   // Feature information. Holds read-only information about a feature.
   VmbFeatureInfo_t = Record
-    name                : pANSIchar;                  // Name used in the API
+    name                : pANSIchar;              // Name used in the API
     featureDataType     : VmbFeatureData_t;       // Data type of this feature
     featureFlags        : VmbFeatureFlags_t;      // Access flags for this feature
-    category            : pANSIchar;                  // Category this feature can be found in
-    displayName         : pANSIchar;                  // Feature name to be used in GUIs
+    category            : pANSIchar;              // Category this feature can be found in
+    displayName         : pANSIchar;              // Feature name to be used in GUIs
     pollingTime         : VmbUint32_t;            // Predefined polling time for volatile features
-    _unit               : pANSIchar;                  // Measuring unit as given in the XML file
-    representation      : pANSIchar;                  // Representation of a numeric feature
+    _unit               : pANSIchar;              // Measuring unit as given in the XML file
+    representation      : pANSIchar;              // Representation of a numeric feature
     visibility          : VmbFeatureVisibility_t; // GUI visibility
-    tooltip             : pANSIchar;                  // Short description, e.g. for a tooltip
-    description         : pANSIchar;                  // Longer description
-    sfncNamespace       : pANSIchar;                  // Namespace this feature resides in
+    tooltip             : pANSIchar;              // Short description, e.g. for a tooltip
+    description         : pANSIchar;              // Longer description
+    sfncNamespace       : pANSIchar;              // Namespace this feature resides in
     isStreamable        : Boolean;                // Indicates if a feature can be stored to / loaded from a file
     hasAffectedFeatures : Boolean;                // Indicates if the feature potentially affects other features
     hasSelectedFeatures : Boolean;                // Indicates if the feature selects other features
@@ -193,12 +192,12 @@ type
 
   // Info about possible entries of an enumeration feature
   VmbFeatureEnumEntry_t = Record
-    name          : pANSIchar;                        // Name used in the API
-    displayName   : pANSIchar;                        // Enumeration entry name to be used in GUIs
+    name          : pANSIchar;                    // Name used in the API
+    displayName   : pANSIchar;                    // Enumeration entry name to be used in GUIs
     visibility    : VmbFeatureVisibility_t;       // GUI visibility
-    tooltip       : pANSIchar;                        // Short description, e.g. for a tooltip
-    description   : pANSIchar;                        // Longer description
-    sfncNamespace : pANSIchar;                        // Namespace this feature resides in
+    tooltip       : pANSIchar;                    // Short description, e.g. for a tooltip
+    description   : pANSIchar;                    // Longer description
+    sfncNamespace : pANSIchar;                    // Namespace this feature resides in
     intValue      : VmbInt64_t;                   // Integer value of this enumeration entry
   end;
 
@@ -224,26 +223,26 @@ type
   // Frame delivered by the camera
   VmbFrame_t = Record
     //----- In -----
-    buffer              : Pointer;             // Comprises image and ancillary data
-    bufferSize          : VmbUint32_t;         // Size of the data buffer
+    buffer              : Pointer;                // Image and ancillary data
+    bufferSize          : VmbUint32_t;            // Size of data buffer
     context             : Array[0..3] of Pointer; // 4 void pointer that can be employed by the user (e.g. for storing handles)
 
     //----- Out -----
-    receiveStatus       : VmbFrameStatus_t;    // Resulting status of the receive operation
-    receiveFlags        : VmbFrameFlags_t;     // Flags indicating which additional frame information is available
-    imageSize           : VmbUint32_t;         // Size of the image data inside the data buffer
-    ancillarySize       : VmbUint32_t;         // Size of the ancillary data inside the data buffer
-    pixelFormat         : VmbPixelFormat_t;    // Pixel format of the image
-    width               : VmbUint32_t;         // Width of an image
-    height              : VmbUint32_t;         // Height of an image
-    offsetX             : VmbUint32_t;         // Horizontal offset of an image
-    offsetY             : VmbUint32_t;         // Vertical offset of an image
+    receiveStatus       : VmbFrameStatus_t;       // Resulting status of the receive operation
+    receiveFlags        : VmbFrameFlags_t;        // Flags indicating which additional frame information is available
+    imageSize           : VmbUint32_t;            // Size of the image data inside the data buffer
+    ancillarySize       : VmbUint32_t;            // Size of the ancillary data inside the data buffer
+    pixelFormat         : VmbPixelFormat_t;       // Pixel format of the image
+    width               : VmbUint32_t;            // Width of image
+    height              : VmbUint32_t;            // Height of image
+    offsetX             : VmbUint32_t;            // Horizontal offset of image
+    offsetY             : VmbUint32_t;            // Vertical offset of image
     {$ifdef Win32}
-      frameID             : VmbUint32_t;         // Unique ID of this frame in this stream
-      timestamp           : VmbUint32_t;         // Timestamp set by the camera
+      frameID           : VmbUint32_t;            // Unique ID of this frame in the stream
+      timestamp         : VmbUint32_t;            // Timestamp set by the camera
     {$else}
-      frameID             : VmbUint64_t;         // Unique ID of this frame in this stream
-      timestamp           : VmbUint64_t;         // Timestamp set by the camera
+      frameID           : VmbUint64_t;            // Unique ID of this frame in the stream
+      timestamp         : VmbUint64_t;            // Timestamp set by the camera
     {$endif}
   end;
 
@@ -985,7 +984,7 @@ Function VmbFeatureFloatIncrementQuery(handle       : VmbHandle_t;
 //                                                  const char**        pValue );
 Function VmbFeatureEnumGet(handle: VmbHandle_t;
                            name  : PANSIchar;
-                           pValue: PPVmbUInt32_t): VmbError_t;
+                           pValue: PPANSIchar): VmbError_t;
                            {$ifdef Win64} cdecl; {$else} stdcall; {$endif}
 //
 // Method:      VmbFeatureEnumSet()
